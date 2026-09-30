@@ -1,0 +1,11 @@
+# pve
+pve_host_ip: "192.168.15.100"
+pve_api_url: "https://{{ pve_host_ip }}:8006/"
+pve_zfs_pool_name: "data-pool"
+pve_token_id: "root@pam!terraform"
+
+# vm docker
+vm_docker_ip: "192.168.15.200"
+
+# secrets from .env
+# ansible_ssh_pass: "{{ lookup('../env', 'ANSIBLE_PVE_PASSWORD') }}"
