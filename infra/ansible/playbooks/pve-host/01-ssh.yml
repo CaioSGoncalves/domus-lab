@@ -1,10 +1,9 @@
----
-- name: "Proxmox VE - Setup de Chaves e Atalho SSH (Dia 0)"
+- name: "Proxmox VE - Setup de Chaves e Atalho SSH"
   hosts: localhost
   gather_facts: false
 
   vars_files:
-      - "../group_vars/all.yml"
+      - "../../group_vars/all.yml"
 
   vars_prompt:
     - name: target_host
@@ -12,38 +11,38 @@
       private: false
       default: "{{ pve_host_ip }}"
 
-    - name: root_password
-      prompt: "Digite a senha root atual do Proxmox (da instalação ISO)"
+    - name: user_password
+      prompt: "Digite a senha atual do user {{ pve_host_user }} do Proxmox"
       private: true
 
     - name: key_name
       prompt: "Qual nome (alias) deseja dar para o acesso SSH?"
       private: false
-      default: "domus-pve-1"
+      default: "domus-lab"
 
   tasks:
     - name: 2. Criar pasta oculta .ssh local do projeto se não existir
       ansible.builtin.file:
-        path: "{{ playbook_dir }}/../.ssh"
+        path: "{{ infra_dir }}/../.ssh"
         state: directory
         mode: '0700'
 
     - name: 3. Gerar par de chaves SSH Ed25519 localmente
       community.crypto.openssh_keypair:
-        path: "{{ playbook_dir }}/../.ssh/{{ key_name }}"
+        path: "{{ infra_dir }}/../.ssh/{{ key_name }}"
         type: ed25519
         comment: "automation-{{ key_name }}"
         force: false
 
     - name: 4. Injetar a chave pública no Proxmox Host usando a senha
       ansible.posix.authorized_key:
-        user: root
+        user: "{{ pve_host_user }}"
         state: present
-        key: "{{ lookup('file', playbook_dir ~ '/../.ssh/' ~ key_name ~ '.pub') }}"
+        key: "{{ lookup('file', infra_dir ~ '/../.ssh/' ~ key_name ~ '.pub') }}"
       delegate_to: "{{ target_host }}"
       vars:
-        ansible_user: root
-        ansible_password: "{{ root_password }}"
+        ansible_user: "{{ pve_host_user }}"
+        ansible_password: "{{ user_password }}"
         ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new -o PreferredAuthentications=password'
 
     - name: 5. Configurar atalho inteligente no ~/.ssh/config local
@@ -55,15 +54,15 @@
         block: |
           Host {{ key_name }}
               HostName {{ target_host }}
-              User root
-              IdentityFile {{ playbook_dir }}/../.ssh/{{ key_name }}
+              User {{ pve_host_user }}
+              IdentityFile {{ infra_dir }}/../.ssh/{{ key_name }}
               StrictHostKeyChecking accept-new
 
     - name: "========================================================================"
       ansible.builtin.debug:
         msg:
           - "SUCESSO ABSOLUTO!"
-          - "1. A chave pública foi injetada no Proxmox."
+          - "1. A chave pública foi injetada no Proxmox host."
           - "2. O atalho de terminal local foi configurado com sucesso."
           - "3. Se a chave foi gerada para o CI/CD:"
           - "lembre-se de copiar o conteúdo de .ssh/{{ key_name }} para o CI/CD Secrets."

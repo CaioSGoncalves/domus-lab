@@ -1,8 +1,15 @@
+infra_dir: "{{ playbook_dir | regex_replace('/ansible.*', '') }}"
+
 # pve
 pve_host_ip: "192.168.15.100"
-pve_api_url: "https://{{ pve_host_ip }}:8006/"
+pve_host_user: "root"
+pve_host_url: "https://{{ pve_host_ip }}:8006/"
+
+pve_token_user: "root@pam"
+pve_token_name: "terraform"
+pve_token_id: "{{ pve_token_user }}!{{ pve_token_name }}"
+
 pve_zfs_pool_name: "data-pool"
-pve_token_id: "root@pam!terraform"
 
 # vm docker
 vm_docker_ip: "192.168.15.200"

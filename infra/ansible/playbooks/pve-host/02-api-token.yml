@@ -1,0 +1,44 @@
+- name: "Proxmox VE - Setup API Token"
+  hosts: proxmox_nodes
+  gather_facts: false
+
+  vars:
+    token_secret: ""
+
+  tasks:
+    - name: 1. Listar tokens do {{ pve_token_user }}
+      ansible.builtin.command: pveum user token list {{ pve_token_user }} --output-format json
+      register: token_list
+      changed_when: false
+
+    - name: 2. Criar token se não existir
+      ansible.builtin.shell:
+        cmd: pveum user token add {{ pve_token_user }} {{ pve_token_name }} --privsep 0 --output-format json
+      register: token_out
+      when: pve_token_name not in token_list.stdout
+
+    - name: 3. Extrair o secret do token
+      ansible.builtin.set_fact:
+        token_secret: "{{ (token_out.stdout | from_json).value }}"
+      when: token_out is defined and token_out.changed
+
+    - name: 4. Upsert token secret no .env local
+      ansible.builtin.lineinfile:
+        path: "{{ infra_dir }}/.env"
+        create: true
+        regex: "^TF_VAR_pve_token_secret="
+        line: "TF_VAR_pve_token_secret={{ token_secret }}"
+      delegate_to: localhost
+      when: token_out is defined and token_out.changed
+
+
+
+#     - name: 5. Atualizar índice de templates
+#       ansible.builtin.command: pveam update
+#       changed_when: false
+#
+#     - name: 6. Baixa template Debian 12
+#       ansible.builtin.shell:
+#         cmd: pveam download local debian-12-standard_12.12-1_amd64.tar.zst
+#       register: tmpl_dl
+#       failed_when: tmpl_dl.rc != 0 and 'already' not in (tmpl_dl.stdout + tmpl_dl.stderr)
